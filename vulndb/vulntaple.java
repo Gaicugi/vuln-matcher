@@ -1,0 +1,147 @@
+/*
+ * Represents one vulnerability.
+ * Identified by a CVE ID. Contains software name, any number of version numbers
+ * and a software dependency specification. 
+ */
+package vulndb;
+
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import matcher.SoftwareDependency;
+import matcher.SoftwareName;
+import matcher.VersionNumber;
+import db.ServerSoftwareTuple;
+
+public class VulnerabilityTuple implements Comparable<VulnerabilityTuple> {
+	private String cve;
+	private SoftwareName software;
+	private ArrayList<VersionNumber> version_numbers;
+	private SoftwareDependency stack;
+
+	public VulnerabilityTuple(String vuln, SoftwareName name, VersionNumber nr,
+			SoftwareDependency deps) {
+		cve = vuln.trim();
+		software = name;
+		stack = deps;
+
+		if (version_numbers == null)
+			version_numbers = new ArrayList<VersionNumber>();
+		version_numbers.add(nr);
+	}
+
+	public VulnerabilityTuple(String vuln, SoftwareName name,
+			ArrayList<VersionNumber> versions, SoftwareDependency deps) {
+		cve = vuln.trim();
+		software = name;
+		stack = deps;
+		version_numbers = new ArrayList<VersionNumber>();
+		for (VersionNumber nr : versions)
+			if (nr != null)
+				version_numbers.add(nr);
+	}
+
+	public void addVersionNumber(VersionNumber v) {
+		for (VersionNumber vn : version_numbers) {
+			if (vn.compareTo(v) == 0)
+				return;
+		}
+		version_numbers.add(v);
+	}
+
+	public String getCVE() {
+		return cve;
+	}
+
+	public SoftwareName getSoftwareName() {
+		return software;
+	}
+
+	public String getSoftware() {
+		return software.toString();
+	}
+
+	public SoftwareDependency getSoftwareDependency() {
+		return stack;
+	}
+
+	public SoftwareDependency getDependency() {
+		return stack;
+	}
+
+	public String toString() {
+		String versions;
+		if (version_numbers.size() > 0)
+			versions = MessageFormat.format("{0} version numbers like {1}",
+					version_numbers.size(), version_numbers.get(0).toString());
+		else
+			versions = "(no version info supplied)";
+		return MessageFormat.format(
+				"VulnerabilityTuple<CVE #{0}, {1}, {2}, {3}>", cve, software,
+				versions, stack);
+	}
+
+	@Override
+	public int compareTo(VulnerabilityTuple other) {
+		// Compare CVE id
+		int result = cve.compareTo(other.getCVE());
+		if (result != 0)
+			return result;
+
+		// Compare SoftwareName
+		result = software.compareTo(other.getSoftwareName());
+		if (result != 0)
+			return result;
+
+		// Compare version numbers
+		for (VersionNumber vn_mine : version_numbers)
+			for (VersionNumber vn_other : other.version_numbers) {
+				result = vn_mine.compareTo(vn_other);
+				if (result != 0)
+					return result;
+			}
+
+		result = stack.compareTo(other.getDependency());
+		if (result != 0)
+			return result;
+		return 0;
+	}
+
+	public static ArrayList<Integer> parseVersionNumber(String vn) {
+		if (vn.length() == 0)
+			return new ArrayList<Integer>();
+
+		Pattern re = Pattern.compile("(\\d+(\\.\\d+)+)");
+		Matcher m = re.matcher(vn);
+		String integerlist = m.group(1);
+
+		String[] integers = integerlist.split("\\.");
+		ArrayList<Integer> numbers = new ArrayList<Integer>();
+		for (String str : integers) {
+			numbers.add(Integer.parseInt(str));
+		}
+
+		return numbers;
+	}
+
+	public int compareTo(ServerSoftwareTuple ss) {
+		int name_cmp = software.compareTo(ss.getSoftware());
+		int version_cmp = 0;
+		for (VersionNumber vn : version_numbers) {
+			version_cmp = vn.compareTo(ss.getVersion());
+		}
+		// int dep_cmp = dependencyCompare(stack, ss.getDependency());
+
+		if (name_cmp == 0 && version_cmp == 0)
+			return 0;
+
+		if (name_cmp != 0)
+			return name_cmp;
+		if (version_cmp != 0)
+			return version_cmp;
+
+		return 0;
+	}
+}
