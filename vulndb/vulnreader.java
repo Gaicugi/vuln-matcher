@@ -1,0 +1,54 @@
+/*
+ * Given a filepath to a vulnerability database,
+ * return a hash set of vulnerabilities.
+ */
+package vulndb;
+
+import java.io.File;
+import java.io.IOException;
+import java.text.MessageFormat;
+import java.util.HashSet;
+
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
+import org.xml.sax.SAXException;
+
+public class VulnerabilityReader{
+	String vuln_db;
+
+	public VulnerabilityReader(String vuln_db_filepath) {
+		vuln_db = vuln_db_filepath;
+	}
+	
+	public HashSet<VulnerabilityTuple> getVulns()
+	{
+		SAXParser parser;
+		SAXParserFactory factory = SAXParserFactory.newInstance();
+		VulnerabilitySaxHandler handler = new VulnerabilitySaxHandler();
+		try {
+			parser = factory.newSAXParser();			
+			parser.parse(vuln_db, handler);			
+		} catch (ParserConfigurationException e) {
+			e.printStackTrace();
+		} catch (SAXException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		return handler.getVuls();
+	}
+
+	public String toString() {
+		int pos = vuln_db.lastIndexOf(File.pathSeparator);
+		String basename;
+		if (pos == -1)
+			basename = vuln_db;
+		else
+			basename = vuln_db.substring(pos);
+
+		return MessageFormat.format("VulnerabilityReader<{0}>", basename);
+	}
+}
