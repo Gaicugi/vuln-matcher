@@ -1,0 +1,74 @@
+/*
+ * SAX handler for parsing vulnerabilities database.
+ * Contains callbacks for the different tags.
+ */
+package vulndb;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+
+import matcher.SoftwareName;
+import matcher.VersionNumber;
+
+import org.xml.sax.Attributes;
+import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
+
+public class VulnerabilitySaxHandler extends DefaultHandler {
+	private HashSet<VulnerabilityTuple> vuls = new HashSet<VulnerabilityTuple>();
+	private String cve = null;
+	private HashMap<String, ArrayList<VersionNumber>> software = null;
+	private boolean product = false;
+
+	@Override
+	public void startElement(String uri, String localName, String qName,
+			Attributes attributes) throws SAXException {
+		if (qName.equalsIgnoreCase("entry")) {
+			software = new HashMap<String, ArrayList<VersionNumber>>();
+			cve = attributes.getValue("id");
+		}
+
+		if (qName.equalsIgnoreCase("vuln:product"))
+			product = true;
+	}
+
+	@Override
+	public void endElement(String uri, String localName, String qName)
+			throws SAXException {
+		if (qName.equalsIgnoreCase("entry")) {
+			for (String key : software.keySet())
+				vuls.add(new VulnerabilityTuple(cve, new SoftwareName(key),
+						software.get(key), null));
+		}
+	}
+
+	@Override
+	public void characters(char ch[], int start, int length)
+			throws SAXException {
+		if (product) {
+			String s = new String(ch, start, length);
+			String[] r = s.split(":");
+
+			ArrayList<VersionNumber> version = null;
+			if (software.containsKey(r[2])) {
+				version = software.get(r[2]);
+				if (r.length > 4)
+					version.add(new VersionNumber(r[4]));
+			} else {
+				if (r.length < 5)
+					software.put(r[2], new ArrayList<VersionNumber>());
+				else {
+					version = new ArrayList<VersionNumber>();
+					version.add(new VersionNumber(r[4]));
+					software.put(r[2], version);
+				}
+			}
+			product = false;
+		}
+	}
+
+	public HashSet<VulnerabilityTuple> getVuls() {
+		return vuls;
+	}
+}
